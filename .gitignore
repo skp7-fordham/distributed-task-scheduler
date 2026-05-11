@@ -8,3 +8,5 @@ worker/.env
 
 backend/logs/
 backend/reports/
+.vercel
+.env*.local

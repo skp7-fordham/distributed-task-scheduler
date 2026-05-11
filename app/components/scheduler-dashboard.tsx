@@ -8,12 +8,8 @@ import {
   type FormEvent,
 } from "react";
 
-/** Backend API base; set `NEXT_PUBLIC_API_URL` in production (e.g. `https://api.example.com`). */
-const API_BASE_URL = (
-  process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:5050"
-).replace(/\/$/, "");
-
-const JOBS_URL = `${API_BASE_URL}/jobs`;
+/** Same-origin API proxy (see `next.config.js` rewrite for `/api/jobs`). */
+const JOBS_URL = "/api/jobs";
 
 export const TASK_TYPES = [
   "report_generation",
