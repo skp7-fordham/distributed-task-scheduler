@@ -12,6 +12,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "csv-parse": "^6.2.1",
     "redis": "^5.12.1"
   }
 }

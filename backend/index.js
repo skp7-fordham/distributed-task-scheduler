@@ -11,7 +11,33 @@ const app = express();
 const PORT = Number(process.env.PORT ?? 5050);
 const DATABASE_URL = process.env.DATABASE_URL;
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
-const QUEUE_KEY = "job_queue";
+
+const PRIORITIES = new Set(["low", "normal", "high"]);
+const QUEUE_KEYS = {
+  high: "job_queue_high",
+  normal: "job_queue_normal",
+  low: "job_queue_low",
+};
+
+function normalizePriorityFromRow(raw) {
+  if (typeof raw === "string" && PRIORITIES.has(raw)) return raw;
+  return "normal";
+}
+
+/** POST body: omitted → normal; invalid explicit value → null. */
+function parsePriorityFromBody(body) {
+  if (body?.priority === undefined || body?.priority === null) {
+    return "normal";
+  }
+  if (typeof body.priority === "string" && PRIORITIES.has(body.priority)) {
+    return body.priority;
+  }
+  return null;
+}
+
+function redisQueueKeyForPriority(priority) {
+  return QUEUE_KEYS[priority] ?? QUEUE_KEYS.normal;
+}
 
 app.use(cors());
 app.use(express.json());
@@ -29,6 +55,7 @@ function jobToJson(job) {
     id: job.id,
     type: job.type ?? null,
     status: job.status ?? "pending",
+    priority: normalizePriorityFromRow(job.priority),
     createdAt: job.created_at,
     result: job.result !== undefined ? job.result : null,
     attempts: typeof job.attempts === "number" ? job.attempts : 0,
@@ -59,10 +86,18 @@ app.post("/jobs", async (req, res) => {
   }
 
   const { v4: uuidv4 } = await import("uuid");
+  const priority = parsePriorityFromBody(req.body);
+  if (priority === null) {
+    return res.status(400).json({
+      error: "Invalid priority",
+      allowed: [...PRIORITIES],
+    });
+  }
   const job = {
     id: uuidv4(),
     type: rawType,
     status: "pending",
+    priority,
     created_at: new Date().toISOString(),
     result: null,
     attempts: 0,
@@ -73,13 +108,14 @@ app.post("/jobs", async (req, res) => {
   try {
     await db.query(
       `
-      INSERT INTO jobs (id, type, status, created_at, result, attempts, max_attempts, error)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO jobs (id, type, status, priority, created_at, result, attempts, max_attempts, error)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       `,
       [
         job.id,
         job.type,
         job.status,
+        job.priority,
         job.created_at,
         job.result,
         job.attempts,
@@ -93,7 +129,7 @@ app.post("/jobs", async (req, res) => {
   }
 
   try {
-    await redis.rPush(QUEUE_KEY, job.id);
+    await redis.rPush(redisQueueKeyForPriority(job.priority), job.id);
   } catch (err) {
     await db.query("DELETE FROM jobs WHERE id = $1", [job.id]).catch(() => {});
     console.error("Redis rPush failed:", err.message);
@@ -107,7 +143,7 @@ app.get("/jobs", async (req, res) => {
   try {
     const result = await db.query(
       `
-      SELECT id, type, status, created_at, result, attempts, max_attempts, error
+      SELECT id, type, status, priority, created_at, result, attempts, max_attempts, error
       FROM jobs
       ORDER BY created_at DESC
       `,
@@ -178,7 +214,7 @@ app.patch("/jobs/:id", async (req, res) => {
       UPDATE jobs
       SET ${updates.join(", ")}
       WHERE id = $${idx}
-      RETURNING id, type, status, created_at, result, attempts, max_attempts, error
+      RETURNING id, type, status, priority, created_at, result, attempts, max_attempts, error
       `,
       values,
     );
@@ -200,12 +236,17 @@ async function ensureSchema() {
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL,
       status TEXT NOT NULL,
+      priority TEXT NOT NULL DEFAULT 'normal',
       created_at TIMESTAMPTZ NOT NULL,
       result JSONB,
       attempts INTEGER NOT NULL DEFAULT 0,
       max_attempts INTEGER NOT NULL DEFAULT 3,
       error TEXT
     )
+  `);
+  await db.query(`
+    ALTER TABLE jobs
+    ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'normal'
   `);
 }
 
