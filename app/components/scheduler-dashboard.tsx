@@ -180,14 +180,19 @@ function JobDetailsModal({
         aria-label="Close dialog"
         onClick={onClose}
       />
-      <div className="relative z-10 max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-foreground/15 bg-background shadow-lg">
-        <div className="flex items-center justify-between border-b border-foreground/10 px-5 py-4">
-          <h2
-            id="job-details-title"
-            className="text-sm font-semibold text-foreground"
-          >
-            Job details
-          </h2>
+      <div className="relative z-10 max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-foreground/15 bg-background shadow-lg">
+        <div className="flex items-start justify-between gap-3 border-b border-foreground/10 px-6 py-4">
+          <div className="space-y-1">
+            <h2
+              id="job-details-title"
+              className="text-sm font-semibold text-foreground"
+            >
+              Job details
+            </h2>
+            <p className="text-xs text-foreground/55">
+              Summary of the job record, then the full JSON payload returned by the API.
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -196,10 +201,87 @@ function JobDetailsModal({
             Close
           </button>
         </div>
-        <div className="max-h-[calc(85vh-4.5rem)] overflow-auto p-5">
-          <pre className="whitespace-pre-wrap break-all font-mono text-xs leading-relaxed text-foreground/85">
-            {formatJobDetailsJson(job)}
-          </pre>
+
+        <div className="max-h-[calc(85vh-5.2rem)] overflow-auto p-6">
+          <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-[12rem] max-w-full">
+                <div className="text-xs font-medium text-foreground/55">Job ID</div>
+                <div
+                  className="mt-1 break-all font-mono text-xs text-foreground/85"
+                  title={job.id}
+                >
+                  {job.id}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {job.type ? (
+                  <span
+                    className="rounded-lg border border-foreground/10 bg-background px-2.5 py-1 text-xs font-mono text-foreground/80"
+                    title={job.type}
+                  >
+                    {formatTaskTypeLabel(job.type)}
+                  </span>
+                ) : null}
+                <PriorityBadge priority={job.priority} />
+                <StatusBadge status={job.status} />
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div>
+                <div className="text-xs font-medium text-foreground/55">Attempts</div>
+                <div className="mt-0.5 font-mono text-sm text-foreground/85">
+                  {job.attempts}/{job.maxAttempts}
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <div className="text-xs font-medium text-foreground/55">Created (UTC)</div>
+                <div className="mt-0.5 text-sm text-foreground/85">
+                  {formatCreatedAt(job.createdAt)}
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <div className="text-xs font-medium text-foreground/55">Result</div>
+                <div className="mt-0.5 text-sm text-foreground/85">
+                  {shortResultSummary(job)}
+                </div>
+              </div>
+            </div>
+
+            {job.error ? (
+              <div className="mt-4 rounded-lg border border-rose-500/20 bg-rose-500/5 p-3">
+                <div className="text-xs font-medium text-rose-700/90 dark:text-rose-300/90">
+                  Error
+                </div>
+                <div className="mt-1 whitespace-pre-wrap break-words font-mono text-xs text-rose-700/80 dark:text-rose-200/80">
+                  {job.error}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-4">
+            <details className="group rounded-xl border border-foreground/10 bg-background">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-foreground/80 [&::-webkit-details-marker]:hidden">
+                <span className="inline-flex items-center gap-2">
+                  <span className="text-foreground/55">Raw details</span>
+                  <span className="rounded-full bg-foreground/[0.06] px-2 py-0.5 text-xs font-medium text-foreground/60">
+                    JSON
+                  </span>
+                </span>
+                <span className="text-foreground/45 transition-transform group-open:rotate-180">
+                  ▼
+                </span>
+              </summary>
+              <div className="border-t border-foreground/10 px-4 py-3">
+                <pre className="whitespace-pre-wrap break-all font-mono text-xs leading-relaxed text-foreground/85">
+                  {formatJobDetailsJson(job)}
+                </pre>
+              </div>
+            </details>
+          </div>
         </div>
       </div>
     </div>
@@ -235,10 +317,24 @@ function PriorityBadge({ priority }: { priority: JobPriority }) {
 }
 
 function MetricCard({ label, value }: { label: string; value: number }) {
+  const accent =
+    label === "Failed"
+      ? "from-rose-500/25 to-rose-500/0"
+      : label === "Completed"
+        ? "from-emerald-500/25 to-emerald-500/0"
+        : label === "Running"
+          ? "from-sky-500/25 to-sky-500/0"
+          : label === "Pending"
+            ? "from-amber-500/25 to-amber-500/0"
+            : "from-foreground/20 to-foreground/0";
+
   return (
-    <div className="rounded-xl border border-foreground/10 bg-background/60 px-4 py-3">
-      <p className="text-xs font-medium text-foreground/50">{label}</p>
-      <p className="mt-0.5 text-xl font-semibold tabular-nums tracking-tight text-foreground">
+    <div className="relative overflow-hidden rounded-xl border border-foreground/10 bg-background/60 px-4 py-3 shadow-sm">
+      <div
+        className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${accent}`}
+      />
+      <p className="relative text-xs font-medium text-foreground/55">{label}</p>
+      <p className="relative mt-1 text-2xl font-semibold tabular-nums tracking-tight text-foreground">
         {value.toLocaleString("en-US")}
       </p>
     </div>
@@ -368,220 +464,254 @@ export default function SchedulerDashboard() {
   }
 
   return (
-    <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col gap-10 px-4 py-12 sm:px-6">
-      {detailsJob ? (
-        <JobDetailsModal
-          job={detailsJob}
-          onClose={() => setDetailsJobId(null)}
-        />
-      ) : null}
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Task scheduler
-        </h1>
-        <p className="text-sm text-foreground/55">
-          Queue and monitor distributed jobs via the local API. Jobs refresh
-          every 2 seconds.
-        </p>
-      </header>
+    <div className="min-h-full bg-gradient-to-b from-foreground/[0.05] via-background to-background">
+      <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6 lg:gap-10 lg:py-12">
+        {detailsJob ? (
+          <JobDetailsModal
+            job={detailsJob}
+            onClose={() => setDetailsJobId(null)}
+          />
+        ) : null}
 
-      <section className="rounded-2xl border border-foreground/10 bg-background/80 p-6 shadow-sm backdrop-blur-sm">
-        <h2 className="text-sm font-medium text-foreground/80">Submit job</h2>
-        <form
-          className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
-          onSubmit={handleSubmit}
-        >
-          <div className="min-w-0 flex-1 basis-[200px] space-y-1.5">
-            <label
-              htmlFor="task-type"
-              className="text-xs font-medium text-foreground/55"
-            >
-              Task type
-            </label>
-            <select
-              id="task-type"
-              name="type"
-              value={taskType}
-              onChange={(e) => setTaskType(e.target.value as TaskType)}
-              disabled={submitting}
-              className="h-[42px] w-full cursor-pointer appearance-none rounded-xl border border-foreground/12 bg-background bg-[length:1rem_1rem] bg-[right_0.75rem_center] bg-no-repeat px-3.5 pr-10 text-sm text-foreground outline-none ring-foreground/10 transition-[border-color,box-shadow] focus:border-foreground/25 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23666'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-              }}
-            >
-              {TASK_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {formatTaskTypeLabel(t)}
-                </option>
-              ))}
-            </select>
+        <header className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              Distributed Task Scheduler
+            </h1>
+            <span className="inline-flex items-center rounded-full border border-foreground/10 bg-foreground/[0.04] px-3 py-1 text-xs font-medium text-foreground/65 shadow-sm">
+              Live · 2s refresh
+            </span>
           </div>
-          <div className="min-w-0 flex-1 basis-[140px] space-y-1.5">
-            <label
-              htmlFor="job-priority"
-              className="text-xs font-medium text-foreground/55"
-            >
-              Priority
-            </label>
-            <select
-              id="job-priority"
-              name="priority"
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as JobPriority)}
-              disabled={submitting}
-              className="h-[42px] w-full cursor-pointer appearance-none rounded-xl border border-foreground/12 bg-background bg-[length:1rem_1rem] bg-[right_0.75rem_center] bg-no-repeat px-3.5 pr-10 text-sm text-foreground outline-none ring-foreground/10 transition-[border-color,box-shadow] focus:border-foreground/25 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23666'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-              }}
-            >
-              {JOB_PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {formatPriorityLabel(p)}
-                </option>
-              ))}
-            </select>
+          <p className="max-w-2xl text-sm leading-relaxed text-foreground/60">
+            Monitor queued jobs, worker execution, retries, and results.
+          </p>
+        </header>
+
+        <section className="rounded-2xl border border-foreground/10 bg-background/70 p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md sm:p-7">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Create job</h2>
+            </div>
           </div>
-          <button
-            type="submit"
-            className="inline-flex h-[42px] shrink-0 items-center justify-center rounded-xl bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={submitting}
+
+          <form
+            className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+            onSubmit={handleSubmit}
           >
-            Submit
-          </button>
-        </form>
-      </section>
+            <div className="min-w-0 flex-1 basis-[220px] space-y-1.5">
+              <label
+                htmlFor="task-type"
+                className="text-xs font-medium text-foreground/55"
+              >
+                Task type
+              </label>
+              <select
+                id="task-type"
+                name="type"
+                value={taskType}
+                onChange={(e) => setTaskType(e.target.value as TaskType)}
+                disabled={submitting}
+                className="h-[42px] w-full cursor-pointer appearance-none rounded-xl border border-foreground/12 bg-background/70 bg-[length:1rem_1rem] bg-[right_0.75rem_center] bg-no-repeat px-3.5 pr-10 text-sm text-foreground shadow-sm outline-none ring-foreground/10 transition-[border-color,box-shadow] focus:border-foreground/25 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23666'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                }}
+              >
+                {TASK_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {formatTaskTypeLabel(t)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="min-w-0 flex-1 basis-[160px] space-y-1.5">
+              <label
+                htmlFor="job-priority"
+                className="text-xs font-medium text-foreground/55"
+              >
+                Priority
+              </label>
+              <select
+                id="job-priority"
+                name="priority"
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as JobPriority)}
+                disabled={submitting}
+                className="h-[42px] w-full cursor-pointer appearance-none rounded-xl border border-foreground/12 bg-background/70 bg-[length:1rem_1rem] bg-[right_0.75rem_center] bg-no-repeat px-3.5 pr-10 text-sm text-foreground shadow-sm outline-none ring-foreground/10 transition-[border-color,box-shadow] focus:border-foreground/25 focus:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23666'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                }}
+              >
+                {JOB_PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {formatPriorityLabel(p)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="submit"
+              className="inline-flex h-[42px] shrink-0 items-center justify-center rounded-xl bg-foreground px-6 text-sm font-semibold text-background shadow-md shadow-black/20 ring-1 ring-white/10 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={submitting}
+            >
+              Create job
+            </button>
+          </form>
 
-      <section className="overflow-hidden rounded-2xl border border-foreground/10 bg-background/80 shadow-sm backdrop-blur-sm">
-        <div className="border-b border-foreground/10 px-6 py-4">
-          <h2 className="text-sm font-medium text-foreground/80">Jobs</h2>
-        </div>
+          <p className="mt-3 text-xs leading-relaxed text-foreground/45">
+            Select a task type and priority. Jobs are queued immediately and
+            processed asynchronously by workers.
+          </p>
+        </section>
 
-        <div className="grid grid-cols-2 gap-3 border-b border-foreground/10 px-6 py-4 sm:grid-cols-3 lg:grid-cols-5">
-          <MetricCard label="Total" value={jobMetrics.total} />
-          <MetricCard label="Pending" value={jobMetrics.pending} />
-          <MetricCard label="Running" value={jobMetrics.running} />
-          <MetricCard label="Completed" value={jobMetrics.completed} />
-          <MetricCard label="Failed" value={jobMetrics.failed} />
-        </div>
+        <section className="overflow-hidden rounded-2xl border border-foreground/10 bg-background/70 shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-md">
+          <div className="border-b border-foreground/10 px-5 py-4 sm:px-6">
+            <h2 className="text-sm font-semibold text-foreground">Jobs</h2>
+            <p className="mt-1 text-xs text-foreground/45">
+              Latest job activity across the distributed queue.
+            </p>
+          </div>
 
-        <div className="overflow-x-auto">
-          <table className="table-fixed w-full min-w-[70rem] text-left text-sm">
-            <thead>
-              <tr className="border-b border-foreground/10 text-foreground/45">
-                <th className="w-28 px-2.5 py-2 text-xs font-medium">
-                  Job ID
-                </th>
-                <th className="w-40 px-2.5 py-2 text-xs font-medium">Type</th>
-                <th className="w-24 px-2.5 py-2 text-xs font-medium">
-                  Priority
-                </th>
-                <th className="w-28 px-2.5 py-2 text-xs font-medium">Status</th>
-                <th className="w-24 px-2.5 py-2 text-xs font-medium">
-                  Attempts
-                </th>
-                <th className="w-36 px-2.5 py-2 text-xs font-medium">Error</th>
-                <th className="w-40 px-2.5 py-2 text-xs font-medium">Result</th>
-                <th className="w-28 px-2.5 py-2 text-xs font-medium">Actions</th>
-                <th className="w-32 px-2.5 py-2 text-xs font-medium">
-                  Created At (UTC)
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-foreground/8">
-              {sortedJobs.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={9}
-                    className="px-4 py-12 text-center text-sm text-foreground/45"
-                  >
-                    No jobs yet. Submit one above.
-                  </td>
+          <div className="grid grid-cols-2 gap-3 border-b border-foreground/10 px-5 py-4 sm:grid-cols-3 sm:px-6 lg:grid-cols-5">
+            <MetricCard label="Total" value={jobMetrics.total} />
+            <MetricCard label="Pending" value={jobMetrics.pending} />
+            <MetricCard label="Running" value={jobMetrics.running} />
+            <MetricCard label="Completed" value={jobMetrics.completed} />
+            <MetricCard label="Failed" value={jobMetrics.failed} />
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="table-fixed w-full min-w-[70rem] text-left text-[13px] leading-snug">
+              <thead className="bg-foreground/[0.02]">
+                <tr className="border-b border-foreground/10 text-foreground/55">
+                  <th className="w-28 px-3 py-2.5 text-left text-xs font-medium text-foreground/55">
+                    Job ID
+                  </th>
+                  <th className="w-40 px-3 py-2.5 text-left text-xs font-medium text-foreground/55">
+                    Type
+                  </th>
+                  <th className="w-24 px-3 py-2.5 text-left text-xs font-medium text-foreground/55">
+                    Priority
+                  </th>
+                  <th className="w-28 px-3 py-2.5 text-left text-xs font-medium text-foreground/55">
+                    Status
+                  </th>
+                  <th className="w-24 px-3 py-2.5 text-left text-xs font-medium text-foreground/55">
+                    Attempts
+                  </th>
+                  <th className="w-36 px-3 py-2.5 text-left text-xs font-medium text-foreground/55">
+                    Error
+                  </th>
+                  <th className="w-40 px-3 py-2.5 text-left text-xs font-medium text-foreground/55">
+                    Result
+                  </th>
+                  <th className="w-28 px-3 py-2.5 text-left text-xs font-medium text-foreground/55">
+                    Actions
+                  </th>
+                  <th className="w-32 px-3 py-2.5 text-left text-xs font-medium text-foreground/55">
+                    Created At (UTC)
+                  </th>
                 </tr>
-              ) : (
-                sortedJobs.map((job) => {
-                  const resultLabel = shortResultSummary(job);
-                  const createdLabel = formatCreatedAt(job.createdAt);
-                  return (
-                  <tr
-                    key={job.id}
-                    className="transition-colors hover:bg-foreground/[0.03]"
-                  >
-                    <td className="w-28 min-w-0 px-2.5 py-2 align-middle font-mono text-xs text-foreground/90">
-                      <span
-                        className="block truncate whitespace-nowrap"
-                        title={job.id}
-                      >
-                        {formatJobIdShort(job.id)}
-                      </span>
-                    </td>
-                    <td className="w-40 min-w-0 px-2.5 py-2 align-middle text-foreground/85">
-                      {job.type ? (
-                        <span
-                          className="block truncate font-mono text-xs tracking-tight whitespace-nowrap"
-                          title={job.type}
-                        >
-                          {job.type}
-                        </span>
-                      ) : (
-                        <span className="text-foreground/35">—</span>
-                      )}
-                    </td>
-                    <td className="w-24 min-w-0 overflow-hidden px-2.5 py-2 align-middle">
-                      <div className="min-w-0">
-                        <PriorityBadge priority={job.priority} />
+              </thead>
+              <tbody className="divide-y divide-foreground/8">
+                {sortedJobs.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-14 text-center">
+                      <div className="mx-auto max-w-lg rounded-2xl border border-foreground/10 bg-foreground/[0.02] px-6 py-10">
+                        <p className="text-sm font-medium text-foreground/75">
+                          No jobs submitted yet.
+                        </p>
+                        <p className="mt-2 text-xs leading-relaxed text-foreground/55">
+                          Create a task to see the distributed pipeline in action.
+                        </p>
                       </div>
-                    </td>
-                    <td className="w-28 min-w-0 overflow-hidden px-2.5 py-2 align-middle">
-                      <div className="min-w-0">
-                        <StatusBadge status={job.status} />
-                      </div>
-                    </td>
-                    <td className="w-24 min-w-0 px-2.5 py-2 align-middle font-mono text-xs whitespace-nowrap text-foreground/75">
-                      {job.attempts}/{job.maxAttempts}
-                    </td>
-                    <td className="w-36 min-w-0 px-2.5 py-2 align-middle text-xs text-rose-700/85 dark:text-rose-300/85">
-                      <span
-                        className="block truncate whitespace-nowrap"
-                        title={job.error ?? undefined}
-                      >
-                        {formatErrorSummary(job)}
-                      </span>
-                    </td>
-                    <td className="w-40 min-w-0 px-2.5 py-2 align-middle text-xs text-foreground/80">
-                      <span
-                        className={`block truncate whitespace-nowrap ${
-                          resultLabel === "-" ? "text-foreground/35" : ""
-                        }`}
-                        title={
-                          resultLabel !== "-" ? resultLabel : undefined
-                        }
-                      >
-                        {resultLabel}
-                      </span>
-                    </td>
-                    <td className="w-28 min-w-0 px-2.5 py-2 align-middle">
-                      <button
-                        type="button"
-                        onClick={() => setDetailsJobId(job.id)}
-                        className="max-w-full truncate text-left text-xs font-medium whitespace-nowrap text-foreground/70 underline decoration-foreground/25 underline-offset-2 transition-colors hover:text-foreground hover:decoration-foreground/50"
-                        title="View full job JSON"
-                      >
-                        View details
-                      </button>
-                    </td>
-                    <td className="w-32 min-w-0 px-2.5 py-2 align-middle text-xs whitespace-nowrap text-foreground/60 tabular-nums">
-                      <span className="block truncate" title={createdLabel}>
-                        {createdLabel}
-                      </span>
                     </td>
                   </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                ) : (
+                  sortedJobs.map((job) => {
+                    const resultLabel = shortResultSummary(job);
+                    const createdLabel = formatCreatedAt(job.createdAt);
+                    return (
+                      <tr
+                        key={job.id}
+                        className="transition-colors hover:bg-foreground/[0.035]"
+                      >
+                        <td className="w-28 min-w-0 px-3 py-1.5 align-middle font-mono text-[12px] text-foreground/90">
+                          <span
+                            className="block truncate whitespace-nowrap"
+                            title={job.id}
+                          >
+                            {formatJobIdShort(job.id)}
+                          </span>
+                        </td>
+                        <td className="w-40 min-w-0 px-3 py-1.5 align-middle text-foreground/85">
+                          {job.type ? (
+                            <span
+                              className="block truncate font-mono text-[12px] tracking-tight whitespace-nowrap"
+                              title={job.type}
+                            >
+                              {job.type}
+                            </span>
+                          ) : (
+                            <span className="text-foreground/35">—</span>
+                          )}
+                        </td>
+                        <td className="w-24 min-w-0 overflow-hidden px-3 py-1.5 align-middle">
+                          <div className="min-w-0">
+                            <PriorityBadge priority={job.priority} />
+                          </div>
+                        </td>
+                        <td className="w-28 min-w-0 overflow-hidden px-3 py-1.5 align-middle">
+                          <div className="min-w-0">
+                            <StatusBadge status={job.status} />
+                          </div>
+                        </td>
+                        <td className="w-24 min-w-0 px-3 py-1.5 align-middle font-mono text-[12px] whitespace-nowrap text-foreground/75">
+                          {job.attempts}/{job.maxAttempts}
+                        </td>
+                        <td className="w-36 min-w-0 px-3 py-1.5 align-middle text-[12px] text-rose-700/85 dark:text-rose-300/85">
+                          <span
+                            className="block truncate whitespace-nowrap"
+                            title={job.error ?? undefined}
+                          >
+                            {formatErrorSummary(job)}
+                          </span>
+                        </td>
+                        <td className="w-40 min-w-0 px-3 py-1.5 align-middle text-[12px] text-foreground/80">
+                          <span
+                            className={`block truncate whitespace-nowrap ${
+                              resultLabel === "-" ? "text-foreground/35" : ""
+                            }`}
+                            title={
+                              resultLabel !== "-" ? resultLabel : undefined
+                            }
+                          >
+                            {resultLabel}
+                          </span>
+                        </td>
+                        <td className="w-28 min-w-0 px-3 py-1.5 align-middle">
+                          <button
+                            type="button"
+                            onClick={() => setDetailsJobId(job.id)}
+                            className="inline-flex max-w-full items-center justify-center truncate rounded-lg border border-foreground/10 bg-foreground/[0.04] px-2.5 py-1 text-left text-[12px] font-semibold whitespace-nowrap text-foreground/80 shadow-sm transition hover:bg-foreground/[0.07] hover:text-foreground"
+                            title="View full job JSON"
+                          >
+                            View details
+                          </button>
+                        </td>
+                        <td className="w-32 min-w-0 px-3 py-1.5 align-middle text-[12px] whitespace-nowrap text-foreground/60 tabular-nums">
+                          <span className="block truncate" title={createdLabel}>
+                            {createdLabel}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
