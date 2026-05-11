@@ -143,3 +143,4 @@ Higher worker count improves end-to-end completion time when the queue is the bo
 ## Why This Is a Distributed Systems Project
 
 The system exhibits classic **distributed systems** concerns: **decoupled components** (API vs workers), **message passing** over Redis instead of in-process calls, **shared durable state** in PostgreSQL with concurrent readers/writers, **at-least-once style delivery** (requeue on failure) bounded by **max attempts**, **priority** across multiple queues, and **elasticity** by adding worker processes. The load test quantifies how **parallel consumers** improve throughput—core motivation for queues and pool-style workers in production platforms.
+ 
